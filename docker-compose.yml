@@ -73,7 +73,8 @@ services:
       - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
 
   spark-worker-1:
-    image: bde2020/spark-worker:3.0.0-hadoop3.2
+    build: ./app/spark/
+    image: spark-worker:3.0.0-hadoop3.2
     container_name: spark-worker-1
     depends_on:
       - spark-master
@@ -112,16 +113,47 @@ services:
     image: bde2020/hive-metastore-postgresql:2.3.0
     container_name: hive-metastore-postgresql
 
-  presto-coordinator:
-    build: ./presto/
-    image: presto-coordinator:3.1.2
-    container_name: presto-coordinator
+  mongo:
+    image: "mongo:3.7"
+    container_name: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: "spark-user"
+      MONGO_INITDB_ROOT_PASSWORD: "spark123"
     ports:
-      - "8089:8089"
-      - "8090:8080"
+      - "27018:27018"
+    volumes:
+      - mongo_db:/data/db
+
+  mysql:
+    image: "mysql:8.0.26"
+    container_name: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "root123"
+      MYSQL_DATABASE: "video_games_analysis"
+      MYSQL_USER: "spark-user"
+      MYSQL_PASSWORD: "spark123"
+    ports:
+      - "3307:3307"
+
+  workbench:
+    build: ./app/
+    image: workbench
+    container_name: workbench
+    tty: true
+
+  # presto-coordinator:
+  #   build: ./presto/
+  #   image: presto-coordinator:3.1.2
+  #   container_name: presto-coordinator
+  #   ports:
+  #     - "8089:8089"
+  #     - "8090:8080"
 
 volumes:
   hadoop_namenode:
   hadoop_datanode:
   hadoop_historyserver:
+  mongo_db:
 
