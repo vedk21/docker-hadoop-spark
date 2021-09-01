@@ -5,42 +5,59 @@ import os
 sys.path.append(os.path.join(os.path.dirname(sys.path[0]), 'config'))
 from mysql_config import MYSQL_DATABASE_CONFIG, MYSQL_SERVER_CONFIG
 from mongo_config import MONGO_DATABASE_CONFIG, MONGO_SERVER_CONFIG
+from hive_config import HIVE_METASTORE_CONFIG, HIVE_SERVER_CONFIG, HIVE_DATABASE_CONFIG
+from hadoop_config import HADOOP_CONFIG
 
 from clean_and_format_basic_details import clean_and_format_basic_details
-# Do this to set default encoding to 'utf-8'
+# Set this to set default encoding to 'utf-8'
 # sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
 
 if __name__ == '__main__':
-  warehouseLocation = "hdfs://namenode:9000/user/hive/warehouse"
+  warehouse_location = (
+    'hdfs://{namenode_host}:{namenode_port}{warehouse_location}'
+    .format(
+      namenode_host = HADOOP_CONFIG['namenode_host'],
+      namenode_port = HADOOP_CONFIG['namenode_port'],
+      warehouse_location = HIVE_SERVER_CONFIG['warehouse_location']
+    )
+  )
 
   # Create spark session
-  spark_mysql = (SparkSession
+  spark_mysql = (
+    SparkSession
     .builder
-    .config("hive.metastore.uris", "thrift://hive-metastore:9083")
-    .config("spark.sql.warehouse.dir", warehouseLocation)
+    .config('hive.metastore.uris', 'thrift://{hive_metastore}:{port}'
+    .format(hive_metastore = HIVE_METASTORE_CONFIG['host'], port = HIVE_METASTORE_CONFIG['port']))
+    .config('spark.sql.warehouse.dir', warehouse_location)
     .enableHiveSupport()
-    .appName('CleanMysqlData')
-    .getOrCreate())
+    .appName('MysqlDataPreparation')
+    .getOrCreate()
+  )
   
   # MYSQL connection in spark
-  games_basic_details_df = (spark_mysql.read.format('jdbc')
-    .option('url', 'jdbc:mysql://{hostname}:{port}/{database}'.format(database = MYSQL_DATABASE_CONFIG['DATABASE_NAME'], hostname = MYSQL_SERVER_CONFIG['host'], port = MYSQL_SERVER_CONFIG['port']))
+  games_basic_details_df = (
+    spark_mysql.read.format('jdbc')
+    .option('url', 'jdbc:mysql://{hostname}:{port}/{database}'
+    .format(database = MYSQL_DATABASE_CONFIG['DATABASE_NAME'],
+    hostname = MYSQL_SERVER_CONFIG['host'], port = MYSQL_SERVER_CONFIG['port']))
     .option('driver', 'com.mysql.jdbc.Driver')
     .option('dbtable', MYSQL_DATABASE_CONFIG['TABLE_NAME'])
     .option('user', MYSQL_SERVER_CONFIG['user'])
     .option('password', MYSQL_SERVER_CONFIG['password'])
-    .load())
+    .load()
+  )
 
   formatted_df = clean_and_format_basic_details(games_basic_details_df)
 
-  formatted_df.show()
+  spark_mysql.sql('CREATE DATABASE {database}'.format(database = HIVE_DATABASE_CONFIG['DATABASE_NAME']))
 
-  spark_mysql.sql("create database spark_tests")
-
-  (formatted_df
-  .write
-  .mode("overwrite")
-  .saveAsTable("spark_tests.s3_table_1"))
+  (
+    formatted_df
+    .write
+    .mode('overwrite') # change in future if needed
+    .saveAsTable('{database}.{table}'
+    .format(database = HIVE_DATABASE_CONFIG['DATABASE_NAME'],table = HIVE_DATABASE_CONFIG['TABLE_NAME']))
+  )
 
   spark_mysql.stop()
 
