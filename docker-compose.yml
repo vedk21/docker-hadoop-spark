@@ -1,3 +1,12 @@
+x-superset-image: &superset-image apache/superset:latest
+x-superset-depends-on: &superset-depends-on
+  - hive-server
+  - redis
+x-superset-volumes: &superset-volumes
+  # /app/pythonpath_docker will be appended to the PYTHONPATH in the final container
+  - ./docker:/app/docker
+  - superset_home:/app/superset_home
+
 version: "3"
 
 services:
@@ -114,7 +123,7 @@ services:
     container_name: hive-metastore-postgresql
 
   mongo:
-    image: "mongo:3.7"
+    image: mongo:3.7
     container_name: mongo
     restart: always
     environment:
@@ -126,7 +135,7 @@ services:
       - mongo_db:/data/db
 
   mysql:
-    image: "mysql:8.0.26"
+    image: mysql:8.0.26
     container_name: mysql
     restart: always
     environment:
@@ -143,6 +152,7 @@ services:
     container_name: workbench
     tty: true
 
+  # Uncomment if presto engine is required
   # presto-coordinator:
   #   build: ./presto/
   #   image: presto-coordinator:3.1.2
@@ -151,9 +161,59 @@ services:
   #     - "8089:8089"
   #     - "8090:8080"
 
+  redis:
+    image: redis:3.2
+    container_name: superset_cache
+    restart: unless-stopped
+    volumes:
+      - redis:/data
+
+  superset:
+    env_file: docker/.env-non-dev
+    image: *superset-image
+    container_name: superset_app
+    restart: unless-stopped
+    ports:
+      - 8099:8088
+    depends_on: *superset-depends-on
+    volumes: *superset-volumes
+
+  superset-init:
+    image: *superset-image
+    container_name: superset_init
+    command: ["/app/docker/docker-init.sh"]
+    env_file: docker/.env-non-dev
+    depends_on: *superset-depends-on
+    user: "root"
+    volumes: *superset-volumes
+
+  superset-worker:
+    image: *superset-image
+    container_name: superset_worker
+    command: ["/app/docker/docker-bootstrap.sh", "worker"]
+    env_file: docker/.env-non-dev
+    restart: unless-stopped
+    depends_on: *superset-depends-on
+    user: "root"
+    volumes: *superset-volumes
+
+  superset-worker-beat:
+    image: *superset-image
+    container_name: superset_worker_beat
+    command: ["/app/docker/docker-bootstrap.sh", "beat"]
+    env_file: docker/.env-non-dev
+    restart: unless-stopped
+    depends_on: *superset-depends-on
+    user: "root"
+    volumes: *superset-volumes
+
 volumes:
   hadoop_namenode:
   hadoop_datanode:
   hadoop_historyserver:
   mongo_db:
+  superset_home:
+    external: false
+  redis:
+    external: false
 
