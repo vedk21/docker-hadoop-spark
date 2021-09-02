@@ -22,7 +22,7 @@ if __name__ == '__main__':
     )
   )
 
-  # Create spark session
+  # Mysql DataSource
   spark_mysql = (
     SparkSession
     .builder
@@ -47,33 +47,46 @@ if __name__ == '__main__':
     .load()
   )
 
-  formatted_df = clean_and_format_basic_details(games_basic_details_df)
+  mysql_formatted_df = clean_and_format_basic_details(games_basic_details_df)
 
   spark_mysql.sql('CREATE DATABASE {database}'.format(database = HIVE_DATABASE_CONFIG['DATABASE_NAME']))
 
   (
-    formatted_df
+    mysql_formatted_df
     .write
     .mode('overwrite') # change in future if needed
     .saveAsTable('{database}.{table}'
-    .format(database = HIVE_DATABASE_CONFIG['DATABASE_NAME'],table = HIVE_DATABASE_CONFIG['TABLE_NAME']))
+    .format(database = HIVE_DATABASE_CONFIG['DATABASE_NAME'],table = HIVE_DATABASE_CONFIG['BASIC_DETAILS_TABLE']))
   )
 
   spark_mysql.stop()
 
-  # spark_mongo = (SparkSession
-  #   .builder
-  #   .appName('CleanMongoData')
-  #   .getOrCreate())
+  # MongoDB DataSource 
+  spark_mongo = (
+    SparkSession
+    .builder
+    .appName('MongoDataPreparation')
+    .getOrCreate()
+  )
 
-  # # MONGODB connection in spark
-  # games_attributes_details_df = (spark_mongo.read.format('mongo')
-  #   .option('uri', 'mongodb://{username}:{password}@{hostname}:{port}/'.format(username = MONGO_SERVER_CONFIG['username'], password = MONGO_SERVER_CONFIG['password'], hostname = MONGO_SERVER_CONFIG['host'], port = MONGO_SERVER_CONFIG['port']))
-  #   .option('database', MONGO_DATABASE_CONFIG['DATABASE_NAME'])
-  #   .option('collection', MONGO_DATABASE_CONFIG['COLLECTION_NAME'])
-  #   .load())
+  # MongoDB connection in spark
+  mongo_formatted_df = (
+    spark_mongo.read.format('mongo')
+    .option('uri', 'mongodb://{username}:{password}@{hostname}:{port}/'
+    .format(username = MONGO_SERVER_CONFIG['username'], password = MONGO_SERVER_CONFIG['password'],
+    hostname = MONGO_SERVER_CONFIG['host'], port = MONGO_SERVER_CONFIG['port']))
+    .option('database', MONGO_DATABASE_CONFIG['DATABASE_NAME'])
+    .option('collection', MONGO_DATABASE_CONFIG['COLLECTION_NAME'])
+    .load()
+  )
 
-  # games_attributes_details_df.show(n = 5, truncate = False)
+  (
+    mongo_formatted_df
+    .write
+    .mode('overwrite') # change in future if needed
+    .saveAsTable('{database}.{table}'
+    .format(database = HIVE_DATABASE_CONFIG['DATABASE_NAME'],table = HIVE_DATABASE_CONFIG['BASIC_ATTRIBUTES_TABLE']))
+  )
 
-  # # Stop session
-  # spark_mongo.stop()
+  # Stop session
+  spark_mongo.stop()

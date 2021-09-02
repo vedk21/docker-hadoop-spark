@@ -12,5 +12,6 @@ HIVE_METASTORE_CONFIG = {
 
 HIVE_DATABASE_CONFIG = {
   'DATABASE_NAME': 'video_games_analysis',
-  'TABLE_NAME': 'games'
+  'BASIC_DETAILS_TABLE': 'games_details',
+  'BASIC_ATTRIBUTES_TABLE': 'games_attributes',
 }

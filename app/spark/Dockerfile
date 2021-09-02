@@ -1,4 +1,4 @@
-FROM bde2020/spark-worker:3.0.0-hadoop3.2
+FROM bde2020/spark-worker:2.4.3-hadoop2.7
 MAINTAINER Vedant Kakade <vedantkakade.cp@gmail.com>
 
 # Set user to root user
@@ -17,7 +17,7 @@ ENV SPARK_CONF_DIR=$SPARK_HOME/conf
 ENV PATH=$PATH:/spark/bin
 
 COPY src/libs/mysql-connector-java-8.0.26.jar $SPARK_HOME/jars/
-COPY src/libs/mongo-spark-connector_2.12-3.0.1.jar $SPARK_HOME/jars/
+COPY src/libs/mongo-spark-connector_2.11-2.4.2.jar $SPARK_HOME/jars/
 COPY src/libs/mongodb-driver-3.8.1.jar $SPARK_HOME/jars/
 COPY src/libs/mongodb-driver-core-3.8.1.jar $SPARK_HOME/jars/
 COPY src/libs/bson-3.8.1.jar $SPARK_HOME/jars/

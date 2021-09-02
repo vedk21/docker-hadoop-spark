@@ -14,7 +14,7 @@ from parquet_client import write_to_parquet
 
 def getGamesData(URL, params):
   games_list = []
-  for i in range(25):
+  for i in range(50):
     # update page number
     params['page'] = i + 1
     # Create GET request
@@ -55,15 +55,16 @@ def prepareSQLData(game):
 def prepareNOSQLData(game):
   return {
     'id': game['id'],
-    'tags': getTags(game['tags']) if 'tags' in game else []
+    'tags': getTags(game['tags']) if 'tags' in game else [],
+    'genres': getGenres(game['genres']) if 'genres' in game else [],
+    'status': game['added_by_status'] if 'added_by_status' in game else None
   }
 
 def prepareParquetData(game):
   return {
     'id': game['id'],
     'platforms': getPlatforms(game['parent_platforms']) if 'parent_platforms' in game else [],
-    'stores': getStores(game['stores']) if 'stores' in game else [],
-    'genres': getGenres(game['genres']) if 'genres' in game else []
+    'stores': getStores(game['stores']) if 'stores' in game else []
   }
 
 def getTags(tags):
@@ -127,16 +128,13 @@ def add_to_pandas_df(game, items ,parquet_df):
 def convert_to_pandas_df(parquet_data):
   platforms_parquet_df = {'game_id': [], 'id': [], 'slug': [], 'name': []}
   stores_parquet_df = {'game_id': [], 'id': [], 'slug': [], 'name': []}
-  genres_parquet_df = {'game_id': [], 'id': [], 'slug': [], 'name': []}
   for game in parquet_data:
     platforms_parquet_df = add_to_pandas_df(game, game['platforms'], platforms_parquet_df)
     stores_parquet_df = add_to_pandas_df(game, game['stores'], stores_parquet_df)
-    genres_parquet_df = add_to_pandas_df(game, game['genres'], genres_parquet_df)
 
   return {
     'platforms_df': platforms_parquet_df,
-    'stores_df': stores_parquet_df,
-    'genres_df': genres_parquet_df
+    'stores_df': stores_parquet_df
   }
 
 if __name__ == '__main__':
@@ -144,7 +142,7 @@ if __name__ == '__main__':
     'key': API_CONFIG['API_KEY'],
     'page': 1,
     'page_size': 40, # max size aacepted by API
-    'dates': '2015-01-01,2015-01-31',
+    'dates': '2015-01-01,2015-12-31',
     'ordering': '-rating' # '-' means descending order
   }
 
@@ -163,9 +161,7 @@ if __name__ == '__main__':
 
   platforms_df = pd.DataFrame(data = parquet_dataframe['platforms_df'])
   stores_df = pd.DataFrame(data = parquet_dataframe['stores_df'])
-  genres_df = pd.DataFrame(data = parquet_dataframe['genres_df'])
 
   # write to parquet
   write_to_parquet(platforms_df, '{base_path}/platforms.gzip.parq'.format(base_path = PARQUET_CONFIG['PATH']))
   write_to_parquet(stores_df, '{base_path}/stores.gzip.parq'.format(base_path = PARQUET_CONFIG['PATH']))
-  write_to_parquet(genres_df, '{base_path}/genres.gzip.parq'.format(base_path = PARQUET_CONFIG['PATH']))
